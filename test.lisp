@@ -35,6 +35,30 @@
   #|(>_< (parse-number"-.5"))|#)
 
 
+(test arrayp
+  (== (mapcar (lambda (x)
+                (list (basic-array-p x)
+                      (basic-array*-p x)
+                      (general-array*-p x)))
+              '((a b c)
+                "abc"
+                #(a b c)
+                #1a(a b c)
+                #2a((a) (b) (c))))
+      '((cl:nil cl:nil cl:nil) 
+        (cl:t cl:nil cl:nil) (cl:t cl:nil cl:nil) (cl:t cl:nil cl:nil)
+        (cl:t cl:t cl:t))))
+
+
+(test array1
+  (let ((array1 (create-array '(3 3 3) 0)))
+    (setf (aref array1 0 1 2) 3.15)
+    (== (aref array1 0 1 2) 3.15)
+    (set-aref :foo array1 0 2 2)
+    (== (aref array1 0 2 2) :foo)))
+
+
+
 ;;; *EOF*
 
 

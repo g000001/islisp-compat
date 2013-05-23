@@ -55,20 +55,19 @@
 
 (defsynonym is:functionp cl:functionp)
 (defsynonym is:function cl:function)
-(defsynonym is:lambda cl:lambda)
+(defmacro is:lambda ((&rest args) &body body)
+  `#'(cl:lambda (,@args) ,@body))
 (defsynonym is:labels cl:labels)
 (defsynonym is:flet cl:flet)
 (defsynonym is:apply cl:apply)
 (defsynonym is:funcall cl:funcall)
 (defsynonym is:defconstant cl:defconstant)
-
 (defmacro is:defglobal (var val)
   (let ((backing-var (intern (format nil "-*-global-~A-*-" var))))
     `(progn
        (cl:defconstant ,backing-var 
          (if (boundp ',backing-var) (symbol-value ',backing-var) ,val))
        (define-symbol-macro ,var ,backing-var))))
-
 (defsynonym is:defdynamic cl:defvar)
 (defsynonym is:defun cl:defun)
 (defconstant is:t cl:t)
@@ -84,11 +83,13 @@
 (defsynonym is:setf cl:setf)
 (defmacro is:let ((&rest binds) &body body)
   `(let (,@binds) ,@body))
-(defsynonym is:let* cl:let*)
-
-
-;; (defsynonym is:dynamic cl:dynamic)
-;; (defsynonym is:set-dynamic cl:set-dynamic)
+(defmacro is:let* ((&rest binds) &body body)
+  `(let* (,@binds) ,@body))
+(defsynonym is:dynamic cl:symbol-value)
+(defun (setf is:dynamic) (form var)
+  (setf (symbol-value form) var))
+(defun is:set-dynamic (form var)
+  (setf (symbol-value form) var))
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun extract-vars (binds)
     (mapcar (lambda (x)
@@ -98,19 +99,15 @@
                 ((cons symbol (cons * null)) (car x))
                 (symbol x)))
             binds)))
-
 (defmacro is:dynamic-let ((&rest binds) &body body)
   (let ((vars (extract-vars binds)))
     `(cl:let (,@binds)
        ,@(and vars `((declare (special ,@vars))))
        ,@body)))
-
 (defmacro is:if (pred then &optional else)
   `(if ,pred ,then ,else))
 (defsynonym is:cond cl:cond)
 (defsynonym is:case cl:case)
-
-
 (defmacro is:case-using (predform key &body clauses)
   ;;--- FIXME
   (let ((gkey (gensym "key-"))
@@ -135,15 +132,11 @@
              (,gpred ,predform))
          (declare ((or function symbol) ,gpred))
          (cond ,@(case* clauses))))))
-
-
 (defmacro is:progn (&body body) `(cl:progn ,@body))
-
 (defmacro is:while (pred &body body)
   `(do ()
        ((not ,pred))
      ,@body))
-
 (defsynonym is:for cl:do)
 (defmacro is:block (name &body body)
   `(cl:block ,name ,@body))
@@ -164,9 +157,12 @@
 #|(defsynonym is:assure cl:assure)|#
 (defsynonym is:convert cl:coerce)
 (defsynonym is:symbolp cl:symbolp)
-#|(defsynonym is:property cl:property)|#
-#|(defsynonym is:set-property cl:set-property)|#
-#|(defsynonym is:remove-property cl:remove-property)|#
+(defsynonym is:property cl:get)
+(defun (setf is:property) (obj symbol property-name)
+  (setf (get symbol property-name) obj))
+(defun is:set-property (obj symbol property-name)
+  (setf (get symbol property-name) obj))
+(defsynonym is:remove-property cl:remprop)
 (defsynonym is:gensym cl:gensym)
 (defsynonym is:numberp cl:numberp)
 (defun is:parse-number (string)
@@ -174,7 +170,6 @@
     ;;--- FIXME
     (assert (numberp num))
     num))
-
 (defsynonym is:= cl:=)
 (defsynonym is:/= cl:/=)
 (defsynonym is:>= cl:>=)
@@ -184,8 +179,11 @@
 (defsynonym is:+ cl:+)
 (defsynonym is:* cl:*)
 (defsynonym is:- cl:-)
-#|(defsynonym is:quotient cl:quotient)|#
-#|(defsynonym is:reciprocal cl:reciprocal)|#
+(defun is:quotient (dividend &rest divisors)
+  (apply #'/ dividend divisors))
+(is:quotient 2 -0.5)
+(is:quotient 2 3 4)
+(defun is:reciprocal (x) (/ x))
 (defsynonym is:max cl:max)
 (defsynonym is:min cl:min)
 (defsynonym is:abs cl:abs)
@@ -197,8 +195,12 @@
 (defsynonym is:sin cl:sin)
 (defsynonym is:cos cl:cos)
 (defsynonym is:tan cl:tan)
-(defsynonym is:atan cl:atan)
-#|(defsynonym is:atan2 cl:atan2)|#
+(defun is:atan (x)
+  (declare (number x))
+  (cl:atan x))
+(defun is:atan2 (x y)
+  (declare (number x y))
+  (cl:atan x y))
 (defsynonym is:sinh cl:sinh)
 (defsynonym is:cosh cl:cosh)
 (defsynonym is:tanh cl:tanh)
@@ -244,18 +246,29 @@
 (defsynonym is:mapl cl:mapl)
 (defsynonym is:mapcon cl:mapcon)
 (defsynonym is:assoc cl:assoc)
-#|(defsynonym is:basic-array-p cl:basic-array-p)|#
-#|(defsynonym is:basic-array*-p cl:basic-array*-p)|#
-#|(defsynonym is:general-array*-p cl:general-array*-p)|#
-#|(defsynonym is:create-array cl:create-array)|#
+(defsynonym is:basic-array-p cl:arrayp)
+(defun is:basic-array*-p (obj)
+  (typep obj '(and array (not (array * (*))))))
+(defun is:general-array*-p (obj)
+  (typep obj '(and array (not (array * (*))))))
+(defun is:create-array (dimensions &optional (initial-element 0))
+  (make-array dimensions :initial-element initial-element))
 (defsynonym is:aref cl:aref)
-#|(defsynonym is:garef cl:garef)|#
-#|(defsynonym is:set-aref cl:set-aref)|#
-#|(defsynonym is:set-garef cl:set-garef)|#
+(defsynonym is:garef cl:aref)
+(defun is:set-aref (obj basic-array &rest z)
+  (setf (apply #'aref basic-array z) obj))
+(defun (setf is:aref) (obj basic-array &rest z)
+  (setf (apply #'aref basic-array z) obj))
+(defun is:set-garef (obj array &rest z)
+  (setf (apply #'aref array z) obj))
+(defun (setf is:garef) (obj array &rest z)
+  (setf (apply #'aref array z) obj))
 (defsynonym is:array-dimensions cl:array-dimensions)
-#|(defsynonym is:basic-vector-p cl:basic-vector-p)|#
-#|(defsynonym is:general-vector-p cl:general-vector-p)|#
-#|(defsynonym is:create-vector cl:create-vector)|#
+(defun is:basic-vector-p (obj)
+  (typep obj '(and vector (not string))))
+(defsynonym is:general-vector-p cl:vectorp)
+(defun is:create-vector (i &optional (initial-element 0))
+  (make-sequence 'vector i :initial-element initial-element))
 (defsynonym is:vector cl:vector)
 (defsynonym is:stringp cl:stringp)
 (defun is:create-string (i &optional (initial-character #\Nul))
@@ -273,7 +286,6 @@
 (defun is:string-index (substring string &optional (start-position 0))
   (declare (string substring string))
   (search substring string :start2 start-position))
-
 (defun is:string-append (&rest strings)
   (let* ((anslen (reduce (lambda (res x) (+ (length x) res)) strings
                          :initial-value 0))
@@ -282,7 +294,6 @@
     (dolist (s strings ans)
       (loop :for c :across s 
             :do (setf (char ans (incf ansidx)) c)))))
-
 (defsynonym is:length cl:length)
 (defsynonym is:elt cl:elt)
 (defun is:set-elt (obj sequence z) (setf (elt sequence z) obj))
@@ -310,13 +321,9 @@
 (defsynonym is:get-output-stream-string cl:get-output-stream-string)
 (defsynonym is:read cl:read)
 (defsynonym is:read-char cl:read-char)
-
-
 (defun is:preview-char
        (&optional (input-stream *standard-input*) (eos-error-p t) eos-value)
   (peek-char nil input-stream eos-error-p eos-value))
-
-
 (defsynonym is:read-line cl:read-line)
 #|(defsynonym is:stream-ready-p cl:stream-ready-p)|#
 (defsynonym is:format cl:format)
@@ -357,5 +364,4 @@
 (defconstant is:internal-time-units-per-second cl:internal-time-units-per-second)
 
 ;;; *EOF*
-
 
