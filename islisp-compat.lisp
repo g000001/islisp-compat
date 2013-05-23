@@ -149,13 +149,19 @@
 (defsynonym is:defclass cl:defclass)
 (defun is:generic-function-p (obj) (typep obj 'cl:generic-function ))
 #|(defsynonym is:call-next-method cl:call-next-method)|#
-#|(defsynonym is:next-method-p cl:no-next-method)|#
-#|(defsynonym is:create cl:create)|#
-#|(defsynonym is:initialize-object cl:initialize-object)|#
+#|(defsynonym is:next-method-p cl:next-method-p)|#
+(defsynonym is:create cl:make-instance)
+(defsynonym is:initialize-object cl:initialize-instance)
 (defsynonym is:class-of cl:class-of)
-#|(defsynonym is:instancep cl:instancep)|#
-#|(defsynonym is:subclassp cl:subclassp)|#
-#|(defsynonym is:class cl:class)|#
+(defun is:instancep (obj) #+sbcl (sb-kernel:%instancep obj))
+(defun is:subclassp (class1 class2)
+  (multiple-value-bind (sybtypep validp)
+                       (subtypep class1 class2)
+    (if validp 
+        sybtypep
+        ;;--- FIXME
+        (error "domain-error"))))
+(defmacro is:class (class-name) `(find-class ',class-name))
 (defsynonym is:defmacro cl:defmacro)
 (defmacro is:the (thing) `(cl:the ,thing))
 (defmacro is:assure (class-name form)
@@ -163,7 +169,8 @@
     `(let ((,|obj| ,form))
        (assert (typep ,form ',class-name))
        ,|obj|)))
-(defsynonym is:convert cl:coerce)
+(defmacro is:convert (obj class-name)
+  `(cl:coerce ,obj ',class-name))
 (defsynonym is:symbolp cl:symbolp)
 (defsynonym is:property cl:get)
 (defun (setf is:property) (obj symbol property-name)
@@ -380,12 +387,15 @@
 (defsynonym is:read-byte cl:read-byte)
 (defsynonym is:write-byte cl:write-byte)
 (defsynonym is:probe-file cl:probe-file)
-(defsynonym is:file-position cl:file-position)
-#|(defsynonym is:set-file-position cl:set-file-position)|#
+(defun is:file-position (stream) (cl:file-position stream))
+(defun is:set-file-position (stream z) (cl:file-position stream z))
 (defsynonym is:file-length cl:file-length)
 (defsynonym is:error cl:error)
 (defsynonym is:cerror cl:cerror)
-#|(defsynonym is:signal-condition cl:signal-condition)|#
+(defun is:signal-condition (condition continuable)
+  (if continuable
+      (error condition)
+      (cerror (or continuable "") condition)))
 (defsynonym is:ignore-errors cl:ignore-errors)
 #|(defsynonym is:report-condition cl:report-condition)|#
 #|(defsynonym is:condition-continuable cl:condition-continuable)|#

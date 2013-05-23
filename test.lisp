@@ -69,6 +69,20 @@
   (cl:get-output-stream-string (standard-output)))|#
 
 
+#|(signal-condition
+ (create (class <simple-error>)
+         'format-string error-string
+         'format-arguments (list obj ))
+ nil)|#
+
+#|(signal-condition
+ (cl:make-condition 'cl:simple-error
+                    :format-control "foo"
+                    :format-arguments '(8))
+  nil)|#
+
+;; (cl:make-instance 'cl:simple-error)
+
 ;;; *EOF*
 
 
