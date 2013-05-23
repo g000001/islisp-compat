@@ -7,8 +7,8 @@
   (:use)
   (:export
    :functionp :function :lambda :labels :flet :apply :funcall :defconstant
-   :defglobal :defdynamic :defun :t :nil :eq :eql :equal :not :and :or :constant
-   :quote :var :setq :setf :let :let* :dynamic :set-dynamic :dynamic-let :if
+   :defglobal :defdynamic :defun :t :nil :eq :eql :equal :not :and :or 
+   :quote :setq :setf :let :let* :dynamic :set-dynamic :dynamic-let :if
    :cond :case :case-using :progn :while :for :block :catch :unwind-protect
    :defclass :generic-function-p :call-next-method :next-method-p :create
    :initialize-object :class-of :instancep :subclassp :class :defmacro :the

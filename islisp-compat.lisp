@@ -14,9 +14,9 @@
   `(progn
      (setf (documentation ',alias 'function)
 	   ,doc-string)
-     (cl:if (macro-function ',orig)
+     (cl:if (and (symbolp ',orig) (macro-function ',orig))
             (setf (macro-function ',alias) (macro-function ',orig))
-            (setf (symbol-function ',alias) (symbol-function ',orig)))))
+            (setf (fdefinition ',alias) (fdefinition ',orig)))))
 
 
 #|(mapc (lambda (x)
@@ -64,24 +64,31 @@
 (defsynonym is:apply cl:apply)
 (defsynonym is:funcall cl:funcall)
 (defsynonym is:defconstant cl:defconstant)
-;; (defsynonym is:defglobal cl:defglobal)
-;; (defsynonym is:defdynamic cl:defdynamic)
+
+(defmacro is:defglobal (var val)
+  (let ((backing-var (intern (format nil "-*-global-~A-*-" var))))
+    `(progn
+       (cl:defconstant ,backing-var 
+         (if (boundp ',backing-var) (symbol-value ',backing-var) ,val))
+       (define-symbol-macro ,var ,backing-var))))
+
+(defsynonym is:defdynamic cl:defvar)
 (defsynonym is:defun cl:defun)
-;; (defsynonym is:t cl:t)
-;; (defsynonym is:nil cl:nil)
+(defconstant is:t cl:t)
+(defconstant is:nil cl:nil)
 (defsynonym is:eq cl:eq)
 (defsynonym is:eql cl:eql)
 (defsynonym is:equal cl:equal)
 (defsynonym is:not cl:not)
 (defsynonym is:and cl:and)
 (defsynonym is:or cl:or)
-;; (defsynonym is:constant cl:constant)
 (defsynonym is:quote cl:quote)
-;; (defsynonym is:var cl:var)
 (defsynonym is:setq cl:setq)
 (defsynonym is:setf cl:setf)
 (defsynonym is:let cl:let)
 (defsynonym is:let* cl:let*)
+
+
 ;; (defsynonym is:dynamic cl:dynamic)
 ;; (defsynonym is:set-dynamic cl:set-dynamic)
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -103,9 +110,52 @@
 (defsynonym is:if cl:if)
 (defsynonym is:cond cl:cond)
 (defsynonym is:case cl:case)
+
 #|(defsynonym is:case-using cl:case-using)|#
+
+(defmacro case-using (predform key &body clauses)
+  ;;--- FIXME
+  (let ((gkey (gensym "key-"))
+        (gpred (gensym "pred-")))
+    (labels ((case* (clauses)
+               (let ((head (car clauses))
+                     (tail (cdr clauses)))
+                 (typecase head
+                   (null '())
+                   ((cons (eql is:t))
+                    (cons `(is:t ,@(cdr head))
+                          (case* tail)))
+                   ((cons cons *)
+                    (cons `((member ,gkey ',(car head) :test ,gpred)
+                            ,@(cdr head))
+                          (case* tail)))
+                   ((cons atom *)
+                    (cons `((cl:funcall ,gpred ,gkey ,(car head))
+                            ,@(cdr head))
+                          (case* tail)))))))
+      `(let ((,gkey ,key)
+             (,gpred ,predform))
+         (declare ((or function symbol) ,gpred))
+         (cond ,@(case* clauses))))))
+
+
+#|(case-using #'= (+ 1.0 1.0)	
+  ((1) 'one)
+  (2 'two)
+  (is:t 'more))|#
+
+#|(case-using #'string= "foo"
+  (("fooo" "foo") 'foo)
+  (is:t 'bar))|#
+
+
 (defsynonym is:progn cl:progn)
-#|(defsynonym is:while cl:while)|#
+
+(defmacro is:while (pred &body body)
+  `(do ()
+       ((not ,pred))
+     ,@body))
+
 (defsynonym is:for cl:do)
 (defsynonym is:block cl:block)
 (defsynonym is:catch cl:catch)
@@ -149,7 +199,7 @@
 (defsynonym is:log cl:log)
 (defsynonym is:expt cl:expt)
 (defsynonym is:sqrt cl:sqrt)
-#|(defsynonym is:*pi* cl:pi)|#
+(defconstant is:*pi* cl:pi)
 (defsynonym is:sin cl:sin)
 (defsynonym is:cos cl:cos)
 (defsynonym is:tan cl:tan)
@@ -182,11 +232,12 @@
 (defsynonym is:cons cl:cons)
 (defsynonym is:car cl:car)
 (defsynonym is:cdr cl:cdr)
-#|(defsynonym is:set-car cl:set-car)|#
-#|(defsynonym is:set-cdr cl:set-cdr)|#
+(defun is:set-car (var val) (funcall #'(setf car) val var))
+(defun is:set-cdr (var val) (funcall #'(setf cdr) val var))
 (defsynonym is:null cl:null)
 (defsynonym is:listp cl:listp)
-#|(defsynonym is:create-list cl:create-list)|#
+(defun is:create-list (i &optional initial-element)
+  (cl:make-list i :initial-element initial-element))
 (defsynonym is:list cl:list)
 (defsynonym is:reverse cl:reverse)
 (defsynonym is:nreverse cl:nreverse)
@@ -282,7 +333,7 @@
 (defsynonym is:get-universal-time cl:get-universal-time)
 (defsynonym is:get-internal-run-time cl:get-internal-run-time)
 (defsynonym is:get-internal-real-time cl:get-internal-real-time)
-#|(defsynonym is:internal-time-units-per-second cl:internal-time-units-per-second)|#
+(defconstant is:internal-time-units-per-second cl:internal-time-units-per-second)
 
 ;;; *EOF*
 
