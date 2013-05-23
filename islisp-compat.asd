@@ -15,7 +15,7 @@
   (load-system :islisp-compat)
   (or (flet ((_ (pkg sym)
                (intern (symbol-name sym) (find-package pkg))))
-         (let ((result (funcall (_ :fiveam :run) (_ :islisp-compat.internal :islisp-compat))))
+         (let ((result (funcall (_ :fiveam :run) (_ :islisp-compat.test :islisp-compat))))
            (funcall (_ :fiveam :explain!) result)
            (funcall (_ :fiveam :results-status) result)))
       (error "test-op failed") ))

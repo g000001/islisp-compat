@@ -3,9 +3,6 @@
 (cl:in-package :islisp-compat.internal)
 ;; (in-readtable :islisp-compat)
 
-(def-suite islisp-compat)
-
-(in-suite islisp-compat)
 
 ;;; "islisp-compat" goes here. Hacks and glory await!
 
@@ -82,10 +79,11 @@
 (defsynonym is:not cl:not)
 (defsynonym is:and cl:and)
 (defsynonym is:or cl:or)
-(defsynonym is:quote cl:quote)
-(defsynonym is:setq cl:setq)
+(defmacro is:quote (thing) `(cl:quote ,thing))
+(defmacro is:setq (&rest args) `(cl:setq ,@args))
 (defsynonym is:setf cl:setf)
-(defsynonym is:let cl:let)
+(defmacro is:let ((&rest binds) &body body)
+  `(let (,@binds) ,@body))
 (defsynonym is:let* cl:let*)
 
 
@@ -107,13 +105,13 @@
        ,@(and vars `((declare (special ,@vars))))
        ,@body)))
 
-(defsynonym is:if cl:if)
+(defmacro is:if (pred then &optional else)
+  `(if ,pred ,then ,else))
 (defsynonym is:cond cl:cond)
 (defsynonym is:case cl:case)
 
-#|(defsynonym is:case-using cl:case-using)|#
 
-(defmacro case-using (predform key &body clauses)
+(defmacro is:case-using (predform key &body clauses)
   ;;--- FIXME
   (let ((gkey (gensym "key-"))
         (gpred (gensym "pred-")))
@@ -139,17 +137,7 @@
          (cond ,@(case* clauses))))))
 
 
-#|(case-using #'= (+ 1.0 1.0)	
-  ((1) 'one)
-  (2 'two)
-  (is:t 'more))|#
-
-#|(case-using #'string= "foo"
-  (("fooo" "foo") 'foo)
-  (is:t 'bar))|#
-
-
-(defsynonym is:progn cl:progn)
+(defmacro is:progn (&body body) `(cl:progn ,@body))
 
 (defmacro is:while (pred &body body)
   `(do ()
@@ -157,7 +145,8 @@
      ,@body))
 
 (defsynonym is:for cl:do)
-(defsynonym is:block cl:block)
+(defmacro is:block (name &body body)
+  `(cl:block ,name ,@body))
 (defsynonym is:catch cl:catch)
 (defsynonym is:unwind-protect cl:unwind-protect)
 (defsynonym is:defclass cl:defclass)
@@ -171,16 +160,21 @@
 #|(defsynonym is:subclassp cl:subclassp)|#
 #|(defsynonym is:class cl:class)|#
 (defsynonym is:defmacro cl:defmacro)
-(defsynonym is:the cl:the)
+(defmacro is:the (thing) `(cl:the ,thing))
 #|(defsynonym is:assure cl:assure)|#
-#|(defsynonym is:convert cl:convert)|#
+(defsynonym is:convert cl:coerce)
 (defsynonym is:symbolp cl:symbolp)
 #|(defsynonym is:property cl:property)|#
 #|(defsynonym is:set-property cl:set-property)|#
 #|(defsynonym is:remove-property cl:remove-property)|#
 (defsynonym is:gensym cl:gensym)
 (defsynonym is:numberp cl:numberp)
-#|(defsynonym is:parse-number cl:parse-number)|#
+(defun is:parse-number (string)
+  (let ((num (cl:read-from-string string)))
+    ;;--- FIXME
+    (assert (numberp num))
+    num))
+
 (defsynonym is:= cl:=)
 (defsynonym is:/= cl:/=)
 (defsynonym is:>= cl:>=)
@@ -209,8 +203,8 @@
 (defsynonym is:cosh cl:cosh)
 (defsynonym is:tanh cl:tanh)
 (defsynonym is:atanh cl:atanh)
-#|(defsynonym is:*most-positive-float* cl:*most-positive-float*)|#
-#|(defsynonym is:*most-negative-float* cl:*most-negative-float*)|#
+(defconstant is:*most-positive-float* cl:most-positive-single-float)
+(defconstant is:*most-negative-float* cl:most-negative-single-float)
 (defsynonym is:floatp cl:floatp)
 (defsynonym is:float cl:float)
 (defsynonym is:floor cl:floor)
@@ -264,13 +258,34 @@
 #|(defsynonym is:create-vector cl:create-vector)|#
 (defsynonym is:vector cl:vector)
 (defsynonym is:stringp cl:stringp)
-#|(defsynonym is:create-string cl:create-string)|#
-#|(defsynonym is:char-index cl:char-index)|#
-#|(defsynonym is:string-index cl:string-index)|#
-#|(defsynonym is:string-append cl:string-append)|#
+(defun is:create-string (i &optional (initial-character #\Nul))
+  (make-string i :initial-element initial-character))
+(defsynonym is:string= cl:string=) 
+(defsynonym is:string/= cl:string/=)
+(defsynonym is:string< cl:string<)
+(defsynonym is:string> cl:string>)
+(defsynonym is:string>= cl:string>=)
+(defsynonym is:string<= cl:string<=)
+(defun is:char-index (char string &optional (start-position 0))
+  (declare (character char)
+           (string string))
+  (position char string :start start-position))
+(defun is:string-index (substring string &optional (start-position 0))
+  (declare (string substring string))
+  (search substring string :start2 start-position))
+
+(defun is:string-append (&rest strings)
+  (let* ((anslen (reduce (lambda (res x) (+ (length x) res)) strings
+                         :initial-value 0))
+         (ans (make-string anslen))
+         (ansidx -1))
+    (dolist (s strings ans)
+      (loop :for c :across s 
+            :do (setf (char ans (incf ansidx)) c)))))
+
 (defsynonym is:length cl:length)
 (defsynonym is:elt cl:elt)
-#|(defsynonym is:set-elt cl:set-elt)|#
+(defun is:set-elt (obj sequence z) (setf (elt sequence z) obj))
 (defsynonym is:subseq cl:subseq)
 (defsynonym is:map-into cl:map-into)
 (defsynonym is:streamp cl:streamp)
@@ -290,12 +305,18 @@
 #|(defsynonym is:with-open-io-file cl:with-open-io-file)|#
 (defsynonym is:close cl:close)
 (defsynonym is:finish-output cl:finish-output)
-#|(defsynonym is:create-string-input-stream cl:create-string-input-stream)|#
-#|(defsynonym is:create-string-output-stream cl:create-string-output-stream)|#
+(defsynonym is:create-string-input-stream cl:make-string-input-stream)
+(defsynonym is:create-string-output-stream cl:make-string-output-stream)
 (defsynonym is:get-output-stream-string cl:get-output-stream-string)
 (defsynonym is:read cl:read)
 (defsynonym is:read-char cl:read-char)
-#|(defsynonym is:preview-char cl:preview-char)|#
+
+
+(defun is:preview-char
+       (&optional (input-stream *standard-input*) (eos-error-p t) eos-value)
+  (peek-char nil input-stream eos-error-p eos-value))
+
+
 (defsynonym is:read-line cl:read-line)
 #|(defsynonym is:stream-ready-p cl:stream-ready-p)|#
 (defsynonym is:format cl:format)

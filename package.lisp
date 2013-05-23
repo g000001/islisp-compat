@@ -23,7 +23,9 @@
    :mapc :mapcan :maplist :mapl :mapcon :assoc :basic-array-p :basic-array*-p
    :general-array*-p :create-array :aref :garef :set-aref :set-garef
    :array-dimensions :basic-vector-p :general-vector-p :create-vector :vector
-   :stringp :create-string :char-index :string-index :string-append :length :elt
+   :stringp :create-string :string= :string/= :string< :string> :string>= 
+   :string<=
+   :char-index :string-index :string-append :length :elt
    :set-elt :subseq :map-into :streamp :open-stream-p :input-stream-p
    :output-stream-p :standard-input :standard-output :error-output
    :with-standard-input :with-standard-output :with-error-output :open-input-file
@@ -51,6 +53,11 @@
    :<simple-error> :<stream-error> :<end-of-stream> :<storage-exhausted>
    :<standard-class> :<standard-object> :<stream>))
 
+
 (defpackage :islisp-compat.internal
   (:use :cl :named-readtables :fiveam))
+
+
+(defpackage :islisp-compat.test
+  (:use :is :fiveam))
 
