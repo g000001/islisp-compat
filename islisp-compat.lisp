@@ -7,6 +7,10 @@
 ;;; "islisp-compat" goes here. Hacks and glory await!
 
 
+;;; types
+(deftype is:<character> ()
+  'base-char)
+
 (defmacro defsynonym (alias orig &optional doc-string)
   `(progn
      (setf (documentation ',alias 'function)
@@ -143,9 +147,9 @@
 (defsynonym is:catch cl:catch)
 (defsynonym is:unwind-protect cl:unwind-protect)
 (defsynonym is:defclass cl:defclass)
-#|(defsynonym is:generic-function-p cl:generic-function-p)|#
+(defun is:generic-function-p (obj) (typep obj 'cl:generic-function ))
 #|(defsynonym is:call-next-method cl:call-next-method)|#
-#|(defsynonym is:next-method-p cl:next-method-p)|#
+#|(defsynonym is:next-method-p cl:no-next-method)|#
 #|(defsynonym is:create cl:create)|#
 #|(defsynonym is:initialize-object cl:initialize-object)|#
 (defsynonym is:class-of cl:class-of)
@@ -154,7 +158,11 @@
 #|(defsynonym is:class cl:class)|#
 (defsynonym is:defmacro cl:defmacro)
 (defmacro is:the (thing) `(cl:the ,thing))
-#|(defsynonym is:assure cl:assure)|#
+(defmacro is:assure (class-name form)
+  (let ((|obj| (gensym)))
+    `(let ((,|obj| ,form))
+       (assert (typep ,form ',class-name))
+       ,|obj|)))
 (defsynonym is:convert cl:coerce)
 (defsynonym is:symbolp cl:symbolp)
 (defsynonym is:property cl:get)
@@ -303,17 +311,45 @@
 (defsynonym is:open-stream-p cl:open-stream-p)
 (defsynonym is:input-stream-p cl:input-stream-p)
 (defsynonym is:output-stream-p cl:output-stream-p)
-#|(defsynonym is:standard-input cl:standard-input)|#
-#|(defsynonym is:standard-output cl:standard-output)|#
-#|(defsynonym is:error-output cl:error-output)|#
-#|(defsynonym is:with-standard-input cl:with-standard-input)|#
-#|(defsynonym is:with-standard-output cl:with-standard-output)|#
-#|(defsynonym is:with-error-output cl:with-error-output)|#
-#|(defsynonym is:open-input-file cl:open-input-file)|#
-#|(defsynonym is:open-output-file cl:open-output-file)|#
-#|(defsynonym is:open-io-file cl:open-io-file)|#
-#|(defsynonym is:with-open-output-file cl:with-open-output-file)|#
-#|(defsynonym is:with-open-io-file cl:with-open-io-file)|#
+(defun is:standard-input () cl:*standard-input*)
+(defun is:standard-output () cl:*standard-output*)
+(defun is:error-output () cl:*error-output*)
+(defmacro is:with-standard-input (stream-form &body forms)
+  `(with-open-stream (cl:*standard-input* ,stream-form)
+     ,@forms))
+(defmacro is:with-standard-output (stream-form &body forms)
+  `(with-open-stream (cl:*standard-output* ,stream-form)
+     ,@forms))
+(defmacro is:with-error-output (stream-form &body forms)
+  `(with-open-stream (cl:*error-output* ,stream-form)
+     ,@forms))
+(defun is:open-input-file (filename &optional (element-class 'base-char))
+  (open filename :direction :input :element-type element-class))
+(defun is:open-output-file (filename &optional (element-class 'base-char))
+  (open filename :direction :output :element-type element-class))
+(defun is:open-io-file (filename &optional (element-class 'base-char))
+  (open filename :direction :io :element-type element-class))
+(defmacro is:with-open-input-file 
+          ((name filename &optional (element-class 'is:<character>))
+           &body body)
+  `(with-open-file (,name ,filename
+                          :direction :input 
+                          :element-type ',element-class)
+     ,@body))
+(defmacro is:with-open-output-file 
+          ((name filename &optional (element-class 'is:<character>))
+           &body body)
+  `(with-open-file (,name ,filename
+                          :direction :output 
+                          :element-type ',element-class)
+     ,@body))
+(defmacro is:with-open-io-file ((name filename 
+                                      &optional (element-class 'is:<character>))
+                                &body body)
+  `(with-open-file (,name ,filename
+                          :direction :io 
+                          :element-type ',element-class)
+     ,@body))
 (defsynonym is:close cl:close)
 (defsynonym is:finish-output cl:finish-output)
 (defsynonym is:create-string-input-stream cl:make-string-input-stream)
@@ -325,14 +361,22 @@
        (&optional (input-stream *standard-input*) (eos-error-p t) eos-value)
   (peek-char nil input-stream eos-error-p eos-value))
 (defsynonym is:read-line cl:read-line)
-#|(defsynonym is:stream-ready-p cl:stream-ready-p)|#
+(defun is:stream-ready-p (stream)
+  #+swank
+  (swank-backend::input-ready-p stream))
 (defsynonym is:format cl:format)
-#|(defsynonym is:format-char cl:format-char)|#
-#|(defsynonym is:format-float cl:format-float)|#
-#|(defsynonym is:format-fresh-line cl:format-fresh-line)|#
-#|(defsynonym is:format-integer cl:format-integer)|#
-#|(defsynonym is:format-object cl:format-object)|#
-#|(defsynonym is:format-tab cl:format-tab)|#
+(defun is:format-char (output-stream char)
+  (format output-stream "~C" char))
+(defun is:format-float (output-stream float)
+  (format output-stream "~F" float))
+(defun is:format-fresh-line (output-stream)
+  (cl:fresh-line output-stream))
+(defun is:format-integer (output-stream integer)
+  (format output-stream "~D" integer))
+(defun is:format-object (output-stream obj escape-p)
+  (write obj :stream output-stream :escape escape-p))
+(defun is:format-tab (output-stream column)
+  (format output-stream "~VT" column))
 (defsynonym is:read-byte cl:read-byte)
 (defsynonym is:write-byte cl:write-byte)
 (defsynonym is:probe-file cl:probe-file)
@@ -352,8 +396,8 @@
 #|(defsynonym is:domain-error-expected-class cl:domain-error-expected-class)|#
 #|(defsynonym is:parse-error-string cl:parse-error-string)|#
 #|(defsynonym is:parse-error-expected-class cl:parse-error-expected-class)|#
-#|(defsynonym is:simple-error-format-string cl:simple-error-format-string)|#
-#|(defsynonym is:simple-error-format-arguments cl:simple-error-format-arguments)|#
+(defsynonym is:simple-error-format-string cl:simple-condition-format-control)
+(defsynonym is:simple-error-format-arguments cl:simple-condition-format-arguments)
 #|(defsynonym is:stream-error-stream cl:stream-error-stream)|#
 #|(defsynonym is:undefined-entity-name cl:undefined-entity-name)|#
 #|(defsynonym is:undefined-entity-namespace cl:undefined-entity-namespace)|#
@@ -361,7 +405,7 @@
 (defsynonym is:get-universal-time cl:get-universal-time)
 (defsynonym is:get-internal-run-time cl:get-internal-run-time)
 (defsynonym is:get-internal-real-time cl:get-internal-real-time)
-(defconstant is:internal-time-units-per-second cl:internal-time-units-per-second)
+(defun is:internal-time-units-per-second () cl:internal-time-units-per-second)
 
 ;;; *EOF*
 

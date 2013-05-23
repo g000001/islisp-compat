@@ -58,6 +58,16 @@
     (== (aref array1 0 2 2) :foo)))
 
 
+(test with-standard-input
+  (== (with-standard-input (create-string-input-stream "this is a string")
+        (list (read) (read)))
+      '(THIS IS)))
+
+#|(with-standard-output (create-string-output-stream)
+  (cl:print "foo")
+  (cl:print "bar")
+  (cl:get-output-stream-string (standard-output)))|#
+
 
 ;;; *EOF*
 

@@ -29,7 +29,8 @@
    :set-elt :subseq :map-into :streamp :open-stream-p :input-stream-p
    :output-stream-p :standard-input :standard-output :error-output
    :with-standard-input :with-standard-output :with-error-output :open-input-file
-   :open-output-file :open-io-file :with-open-output-file :with-open-io-file
+   :open-output-file :open-io-file :with-open-input-file
+   :with-open-output-file :with-open-io-file
    :close :finish-output :create-string-input-stream :create-string-output-stream
    :get-output-stream-string :read :read-char :preview-char :read-line
    :stream-ready-p :format :format-char :format-float :format-fresh-line
