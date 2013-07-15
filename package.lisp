@@ -5,6 +5,9 @@
 (defpackage :islisp-compat
   (:nicknames :is)
   (:use)
+  (:import-from :cl :t :nil)
+  (:export :&optional :&rest :&key :&allow-other-keys :&aux :&whole :&body
+           :&environment)
   (:export
    :functionp :function :lambda :labels :flet :apply :funcall :defconstant
    :defglobal :defdynamic :defun :t :nil :eq :eql :equal :not :and :or 
@@ -13,7 +16,8 @@
    :defclass :generic-function-p :call-next-method :next-method-p :create
    :initialize-object :class-of :instancep :subclassp :class :defmacro :the
    :assure :convert :symbolp :property :set-property :remove-property :gensym
-   :numberp :parse-number := :/= :>= :<= :> :< :+ :* :- :quotient :reciprocal
+   :numberp :parse-number := :/= :>= :<= :> :< :+ :* :- :div
+   :quotient :reciprocal
    :max :min
    :abs :exp :log :expt :sqrt :*pi* :sin :cos :tan :atan :atan2 :sinh :cosh :tanh
    :atanh :*most-positive-float* :*most-negative-float* :floatp :float :floor

@@ -9,7 +9,22 @@
                :fiveam)
   :components ((:file "package")
                (:file "readtable")
-               (:file "islisp-compat")))
+               (:file "islisp-compat")
+               #-allegro (:file "test")
+               #-allegro (:module "t"
+                                  :components (
+                                               ;#|
+                                               (:file "string")
+                                               (:file "char")
+                                               (:file "symbol")
+                                               (:file "list")
+                                               (:file "array")
+                                               (:file "misc")
+                                               (:file "pred")
+                                               (:file "vector")
+                                               ; |# 
+                                               (:file "macro")
+                                               ))))
 
 (defmethod perform ((o test-op) (c (eql (find-system :islisp-compat))))
   (load-system :islisp-compat)
