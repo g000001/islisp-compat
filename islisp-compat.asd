@@ -22,8 +22,9 @@
                                                (:file "misc")
                                                (:file "pred")
                                                (:file "vector")
-                                               ; |# 
                                                (:file "macro")
+                                               ; |# 
+                                               (:file "seq")
                                                ))))
 
 (defmethod perform ((o test-op) (c (eql (find-system :islisp-compat))))
