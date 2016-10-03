@@ -83,13 +83,18 @@
             (setf (macro-function ',alias) (macro-function ',orig))
             (setf (fdefinition ',alias) (fdefinition ',orig)))))
 
+(defmacro defsynonym-specialform (alias orig &optional doc-string)
+  `(progn
+     (setf (documentation ',alias 'function)
+	   ,doc-string)
+     (cl:defmacro ,alias (&rest args) `(,',orig ,@args))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (or (boundp 'isl-lambda-list-keywords) 
+  (or (boundp 'isl-lambda-list-keywords)
       (defconstant isl-lambda-list-keywords
         '(is:&optional
           is:&rest
-          :rest 
+          :rest
           is:&key
           :key
           is:&allow-other-keys
@@ -158,15 +163,15 @@
 (defmacro is:function (name) `(cl:function ,name))
 (defmacro is:lambda ((&rest args) &body body)
   `#'(cl:lambda (,@(normalize-lambda-list-keyword args)) ,@body))
-(defsynonym is:labels cl:labels)
-(defsynonym is:flet cl:flet)
+(defsynonym-specialform is:labels cl:labels)
+(defsynonym-specialform is:flet cl:flet)
 (defsynonym is:apply cl:apply)
 (defsynonym is:funcall cl:funcall)
 (defsynonym is:defconstant cl:defconstant)
 (defmacro is:defglobal (var val)
   (let ((backing-var (intern (format nil "-*-global-~A-*-" var))))
     `(progn
-       (cl:defconstant ,backing-var 
+       (cl:defconstant ,backing-var
          (if (boundp ',backing-var) (symbol-value ',backing-var) ,val))
        (define-symbol-macro ,var ,backing-var))))
 (defmacro is:defglobal (var val)
@@ -271,8 +276,8 @@
 (defsynonym is:for cl:do)
 (defmacro is:block (name &body body)
   `(cl:block ,name ,@body))
-(defsynonym is:catch cl:catch)
-(defsynonym is:unwind-protect cl:unwind-protect)
+(defsynonym-specialform is:catch cl:catch)
+(defsynonym-specialform is:unwind-protect cl:unwind-protect)
 (defsynonym is:defclass cl:defclass)
 (defun is:generic-function-p (obj) (typep obj 'cl:generic-function ))
 #|(defsynonym is:call-next-method cl:call-next-method)|#
@@ -284,7 +289,7 @@
 (defun is:subclassp (class1 class2)
   (multiple-value-bind (sybtypep validp)
                        (subtypep class1 class2)
-    (if validp 
+    (if validp
         sybtypep
         ;;--- FIXME
         (error "domain-error"))))
@@ -387,10 +392,10 @@
 (defun is:char>= (x y) (cl:char>= x y))
 (defsynonym is:consp cl:consp)
 (defsynonym is:cons cl:cons)
-(defun is:car (cons) 
+(defun is:car (cons)
   (when (null cons) (error 'is:<domain-error>))
   (cl:car cons))
-(defun is:cdr (cons) 
+(defun is:cdr (cons)
   (when (null cons) (error 'is:<domain-error>))
   (cl:cdr cons))
 (defun (setf is:car) (val var) (funcall #'(setf car) val var))
@@ -414,14 +419,14 @@
 (defsynonym is:maplist cl:maplist)
 (defsynonym is:mapl cl:mapl)
 (defsynonym is:mapcon cl:mapcon)
-(defun is:assoc (key alist) 
+(defun is:assoc (key alist)
   (handler-case (cl:assoc key alist)
     (type-error () (error 'is:<error>))))
 (defsynonym is:basic-array-p cl:arrayp)
 (defun is:basic-array*-p (obj) (typep obj 'is:<basic-array*>))
 (defun is:general-array*-p (obj) (typep obj 'is:<general-array*>))
 (defun is:create-array (dimensions &optional (initial-element 0))
-  (unless (every (lambda (x) 
+  (unless (every (lambda (x)
                    (typep x '(integer 0 *)))
                  dimensions)
     (error 'is:<domain-error>))
@@ -431,7 +436,7 @@
 
 
 (defun is:aref (array &rest subscripts)
-  (unless (every (lambda (x) 
+  (unless (every (lambda (x)
                    (typep x '(integer 0 *)))
                  subscripts)
     (error 'is:<domain-error>))
@@ -485,7 +490,7 @@
   (when (and sp? (or (typep string '(string 0))
                      (>= start-position (length string))))
     (error 'is:<program-error>))
-  ;; 
+  ;;
   (position char string :start start-position))
 (defun is:string-index (substring string &optional (start-position 0 sp?))
   (declare (string substring string))
@@ -501,7 +506,7 @@
          (ans (make-string anslen))
          (ansidx -1))
     (dolist (s strings ans)
-      (loop :for c :across s 
+      (loop :for c :across s
             :do (setf (char ans (incf ansidx)) c)))))
 (defsynonym is:length cl:length)
 (defsynonym is:elt cl:elt)
@@ -513,7 +518,7 @@
   (elt sequence index))
 (defun (setf is:elt) (obj sequence index)
   (is:set-elt obj sequence index))
-(defun is:set-elt (obj sequence z) 
+(defun is:set-elt (obj sequence z)
   (when (>= z (length sequence))
     (error 'is:<program-error>))
   (unless (typep z '(integer 0 *))
@@ -544,25 +549,25 @@
   (open filename :direction :output :element-type element-class))
 (defun is:open-io-file (filename &optional (element-class 'base-char))
   (open filename :direction :io :element-type element-class))
-(defmacro is:with-open-input-file 
+(defmacro is:with-open-input-file
           ((name filename &optional (element-class 'is:<character>))
            &body body)
   `(with-open-file (,name ,filename
-                          :direction :input 
+                          :direction :input
                           :element-type ',element-class)
      ,@body))
-(defmacro is:with-open-output-file 
+(defmacro is:with-open-output-file
           ((name filename &optional (element-class 'is:<character>))
            &body body)
   `(with-open-file (,name ,filename
-                          :direction :output 
+                          :direction :output
                           :element-type ',element-class)
      ,@body))
-(defmacro is:with-open-io-file ((name filename 
+(defmacro is:with-open-io-file ((name filename
                                       &optional (element-class 'is:<character>))
                                 &body body)
   `(with-open-file (,name ,filename
-                          :direction :io 
+                          :direction :io
                           :element-type ',element-class)
      ,@body))
 (defsynonym is:close cl:close)
@@ -626,4 +631,3 @@
 (defun is:internal-time-units-per-second () cl:internal-time-units-per-second)
 
 ;;; *EOF*
-
